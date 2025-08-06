@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Quản Lý Khách Hàng</title>
+    <style>
+        body { font-family: Arial; background: #f9f9f9; padding: 20px; }
+        h2 { color: #d90000; }
+        .hidden { display: none; }
+        input, select { margin: 5px; padding: 5px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #d90000; color: white; }
+        button { padding: 5px 10px; margin: 2px; }
+    </style>
+</head>
+<body>
+    <div id="login">
+        <h2>Đăng nhập</h2>
+        <input type="text" id="username" placeholder="Tên đăng nhập"><br>
+        <input type="password" id="password" placeholder="Mật khẩu"><br>
+        <button onclick="login()">Đăng nhập</button>
+    </div>
+
+    <div id="app" class="hidden">
+        <h2>Quản Lý Khách Hàng</h2>
+        <button onclick="showSection('form')">1. Tạo Mới Khách Hàng</button>
+        <button onclick="showSection('list')">2. Danh Sách Khách Hàng</button>
+        <button onclick="showSection('search')">3. Tìm Kiếm</button>
+        <button onclick="showSection('cavet')">4. Cavet Chưa Upp/Chưa Gửi</button>
+        <button onclick="showSection('quahan')">5. Khách Hàng Quá Hạn</button>
+
+        <div id="form" class="hidden">
+            <h3>Tạo Khách Hàng</h3>
+            <input type="text" id="sohd" placeholder="Số hợp đồng"><br>
+            <input type="text" id="hoten" placeholder="Họ và tên"><br>
+            <input type="text" id="sdt" placeholder="Số điện thoại"><br>
+            <select id="cavet">
+                <option value="Gốc">Cavet Gốc</option>
+                <option value="Photo">Cavet Photo</option>
+            </select><br>
+            <select id="trangthai">
+                <option value="Đã gửi">Đã gửi</option>
+                <option value="Đã upp">Đã upp</option>
+                <option value="Chưa gửi">Chưa gửi</option>
+                <option value="Chưa upp">Chưa upp</option>
+            </select><br>
+            <input type="date" id="ngaytt"><br>
+            <button onclick="save()">Lưu</button>
+        </div>
+
+        <div id="list" class="hidden">
+            <h3>Danh Sách Khách Hàng</h3>
+            <table id="tableList"><thead><tr><th>Số HĐ</th><th>Họ tên</th><th>SĐT</th>
+            <th>Cavet</th><th>Trạng thái</th><th>Ngày TT</th><th>Hành động</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <div id="search" class="hidden">
+            <h3>Tìm Kiếm</h3>
+            <input type="text" id="searchInput" placeholder="Nhập từ khoá tìm kiếm" oninput="renderSearch()"><br>
+            <table id="tableSearch"><thead><tr><th>Số HĐ</th><th>Họ tên</th><th>SĐT</th>
+            <th>Cavet</th><th>Trạng thái</th><th>Ngày TT</th><th>Hành động</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <div id="cavet" class="hidden">
+            <h3>Cavet Chưa Upp/Chưa Gửi</h3>
+            <table id="tableCavet"><thead><tr><th>Số HĐ</th><th>Họ tên</th><th>SĐT</th>
+            <th>Cavet</th><th>Trạng thái</th><th>Ngày TT</th><th>Hành động</th></tr></thead><tbody></tbody></table>
+        </div>
+
+        <div id="quahan" class="hidden">
+            <h3>Khách Hàng Quá Hạn Thanh Toán</h3>
+            <table id="tableQH"><thead><tr><th>Số HĐ</th><th>Họ tên</th><th>SĐT</th>
+            <th>Cavet</th><th>Trạng thái</th><th>Ngày TT</th><th>Hành động</th></tr></thead><tbody></tbody></table>
+        </div>
+    </div>
+
+<script>
+let editingIndex = null;
+
+function login() {
+    const user = document.getElementById('username').value;
+    const pass = document.getElementById('password').value;
+    if(user === 'admin' && pass === '123456') {
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        showSection('list');
+    } else {
+        alert('Sai thông tin đăng nhập!');
+    }
+}
+
+function showSection(id) {
+    ['form','list','search','cavet','quahan'].forEach(i => {
+        document.getElementById(i).classList.add('hidden');
+    });
+    document.getElementById(id).classList.remove('hidden');
+    if(id === 'list') renderList();
+    if(id === 'search') renderSearch();
+    if(id === 'cavet') renderCavet();
+    if(id === 'quahan') renderQH();
+    if(id === 'form') clearForm();
+}
+
+function save() {
+    const kh = {
+        sohd: document.getElementById('sohd').value,
+        hoten: document.getElementById('hoten').value,
+        sdt: document.getElementById('sdt').value,
+        cavet: document.getElementById('cavet').value,
+        trangthai: document.getElementById('trangthai').value,
+        ngaytt: document.getElementById('ngaytt').value
+    };
+    let ds = JSON.parse(localStorage.getItem('khachhang') || '[]');
+    if(editingIndex !== null) { ds[editingIndex] = kh; editingIndex=null; }
+    else { ds.push(kh); }
+    localStorage.setItem('khachhang', JSON.stringify(ds));
+    showSection('list');
+}
+
+function renderList() { renderTable('tableList', getData()); }
+function renderSearch() {
+    const kw = document.getElementById('searchInput').value.toLowerCase();
+    const ds = getData().filter(kh =>
+        kh.sohd.toLowerCase().includes(kw) || kh.hoten.toLowerCase().includes(kw) || kh.sdt.includes(kw)
+    );
+    renderTable('tableSearch', ds);
+}
+function renderCavet() {
+    const ds = getData().filter(kh => kh.trangthai === 'Chưa gửi' || kh.trangthai === 'Chưa upp');
+    renderTable('tableCavet', ds);
+}
+function renderQH() {
+    const today = new Date().toISOString().split('T')[0];
+    const ds = getData().filter(kh => kh.ngaytt < today);
+    renderTable('tableQH', ds);
+}
+function renderTable(tableId, ds) {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    tbody.innerHTML = '';
+    ds.forEach((kh,index) => {
+        tbody.innerHTML += `<tr><td>${kh.sohd}</td><td>${kh.hoten}</td><td>${kh.sdt}</td>
+        <td>${kh.cavet}</td><td>${kh.trangthai}</td><td>${kh.ngaytt}</td>
+        <td><button onclick="edit(${index})">Sửa</button><button onclick="remove(${index})">Xoá</button></td></tr>`;
+    });
+}
+function edit(index) {
+    const ds = getData();
+    const kh = ds[index];
+    document.getElementById('sohd').value = kh.sohd;
+    document.getElementById('hoten').value = kh.hoten;
+    document.getElementById('sdt').value = kh.sdt;
+    document.getElementById('cavet').value = kh.cavet;
+    document.getElementById('trangthai').value = kh.trangthai;
+    document.getElementById('ngaytt').value = kh.ngaytt;
+    editingIndex = index;
+    showSection('form');
+}
+function remove(index) {
+    let ds = getData();
+    ds.splice(index,1);
+    localStorage.setItem('khachhang', JSON.stringify(ds));
+    renderList(); renderSearch(); renderCavet(); renderQH();
+}
+function getData() {
+    return JSON.parse(localStorage.getItem('khachhang') || '[]');
+}
+function clearForm() {
+    ['sohd','hoten','sdt','ngaytt'].forEach(id => document.getElementById(id).value='');
+    document.getElementById('cavet').value='Gốc';
+    document.getElementById('trangthai').value='Đã gửi';
+}
+</script>
+</body>
+</html>
